@@ -58,7 +58,7 @@ async function startCallSession(callId, sdpOffer, senderPhoneNumberId, callerNum
     console.log(`[call-session] Transcript: "${transcript}"`);
 
     try {
-      const responseText = await AI.generateCallResponse(transcript);
+      const responseText = await AI.generateTextResponse(transcript);
       console.log(`[call-session] AI response: "${responseText}"`);
       const pcmBuffer = await Voice.synthesizeSpeech(responseText);
       WebRTC.sendAudioToCall(callId, pcmBuffer, 48000, 1);

@@ -161,6 +161,124 @@ module.exports = class GraphApi {
     return this.#makeApiCall(messageId, senderPhoneNumberId, requestBody);
   }
 
+  /**
+   * Send a plain text message.
+   */
+  static async sendTextMessage(messageId, senderPhoneNumberId, recipientPhoneNumber, text) {
+    const requestBody = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: recipientPhoneNumber,
+      type: "text",
+      text: { body: text },
+    };
+    return this.#makeApiCall(messageId, senderPhoneNumberId, requestBody);
+  }
+
+  /**
+   * Send an audio message using an already-uploaded WhatsApp media ID.
+   */
+  static async sendAudioMessage(messageId, senderPhoneNumberId, recipientPhoneNumber, mediaId) {
+    const requestBody = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: recipientPhoneNumber,
+      type: "audio",
+      audio: { id: mediaId },
+    };
+    return this.#makeApiCall(messageId, senderPhoneNumberId, requestBody);
+  }
+
+  /**
+   * Get metadata (URL, mime_type) for a WhatsApp media object.
+   * @param {string} mediaId
+   */
+  static async getMediaInfo(mediaId) {
+    return api.call("GET", [mediaId], {});
+  }
+
+  /**
+   * Download WhatsApp media from its signed URL.
+   * @param {string} mediaUrl
+   * @returns {Promise<Buffer>}
+   */
+  static async downloadMedia(mediaUrl) {
+    const response = await fetch(mediaUrl, {
+      headers: { Authorization: `Bearer ${config.accessToken}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Media download failed: ${response.status}`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  /**
+   * Upload audio to WhatsApp media store.
+   * @param {string} senderPhoneNumberId
+   * @param {Buffer} audioBuffer
+   * @param {string} mimeType - e.g. 'audio/mpeg' or 'audio/wav'
+   * @returns {Promise<string>} The uploaded media ID
+   */
+  static async uploadMedia(senderPhoneNumberId, audioBuffer, mimeType) {
+    const formData = new FormData();
+    formData.append(
+      "file",
+      new Blob([audioBuffer], { type: mimeType }),
+      mimeType === "audio/mpeg" ? "audio.mp3" : "audio.wav"
+    );
+    formData.append("type", mimeType);
+    formData.append("messaging_product", "whatsapp");
+
+    const response = await fetch(
+      `https://graph.facebook.com/v22.0/${senderPhoneNumberId}/media`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.accessToken}` },
+        body: formData,
+      }
+    );
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Media upload failed: ${err}`);
+    }
+    const data = await response.json();
+    return data.id;
+  }
+
+  /**
+   * Perform a call action (pre_accept, accept, reject, terminate) on the Calls API.
+   * @param {string} senderPhoneNumberId
+   * @param {string} callId
+   * @param {string} action - 'pre_accept' | 'accept' | 'reject' | 'terminate'
+   * @param {string|null} sdpAnswer - Required for pre_accept and accept
+   */
+  static async callAction(senderPhoneNumberId, callId, action, sdpAnswer = null) {
+    const body = {
+      messaging_product: "whatsapp",
+      call_id: callId,
+      action,
+    };
+    if (sdpAnswer) {
+      body.session = { sdp_type: "answer", sdp: sdpAnswer };
+    }
+    const response = await fetch(
+      `https://graph.facebook.com/v22.0/${senderPhoneNumberId}/calls`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Call action '${action}' failed: ${err}`);
+    }
+    return response.json();
+  }
+
   static async messageWithMediaCardCarousel(messageId, senderPhoneNumberId, recipientPhoneNumber, options) {
     const { templateName, locale, imageLinks } = options;
     const requestBody = {

@@ -46,8 +46,10 @@ module.exports = class AI {
    */
   static async generateCallResponse(userMessage) {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+
+      model: "claude-sonnet-4-6",
+      max_tokens: 200,
+      azure
       system:
         SYSTEM_PROMPT +
         "\n\n## CALL RESPONSE STYLE\n" +
@@ -61,8 +63,10 @@ module.exports = class AI {
 
   static async generateCallGreeting() {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+
+      model: "claude-sonnet-4-6",
+      max_tokens: 256,
+      azure
       system: SYSTEM_PROMPT,
       messages: [
         {
