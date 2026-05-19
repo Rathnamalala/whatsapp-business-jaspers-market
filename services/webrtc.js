@@ -85,10 +85,15 @@ function sendAudioToCall(callId, pcmBuffer, sampleRate = 24000, channelCount = 1
     Math.floor(pcmBuffer.length / 2)
   );
 
-  for (let offset = 0; offset < allSamples.length; offset += FRAME_SAMPLES) {
+  let offset = 0;
+  const iv = setInterval(() => {
+    if (!activeCalls.has(callId) || offset >= allSamples.length) {
+      clearInterval(iv);
+      return;
+    }
     let chunk = allSamples.slice(offset, offset + FRAME_SAMPLES);
     if (chunk.length < FRAME_SAMPLES) {
-      const padded = new Int16Array(FRAME_SAMPLES); // zero-filled (silence)
+      const padded = new Int16Array(FRAME_SAMPLES);
       padded.set(chunk);
       chunk = padded;
     }
@@ -99,7 +104,8 @@ function sendAudioToCall(callId, pcmBuffer, sampleRate = 24000, channelCount = 1
       channelCount,
       numberOfFrames: FRAME_SAMPLES,
     });
-  }
+    offset += FRAME_SAMPLES;
+  }, 10);
 }
 
 /**
