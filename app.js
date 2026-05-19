@@ -65,6 +65,12 @@ app.post('/webhook', (req, res) => {
               Conversation.handleMessage(senderPhoneNumberId, rawMessage);
             });
           }
+
+          if (value.calls) {
+            value.calls.forEach(callEvent => {
+              Conversation.handleCall(senderPhoneNumberId, callEvent);
+            });
+          }
         }
       });
     });
