@@ -37,6 +37,14 @@ module.exports = Object.freeze({
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID,
   businessContext: process.env.BUSINESS_CONTEXT || "",
 
+  // Azure Cognitive Services TTS (optional — falls back to Deepgram if not set)
+  azureSpeechKey:    process.env.AZURE_SPEECH_KEY    || "",
+  azureSpeechRegion: process.env.AZURE_SPEECH_REGION || "eastus",
+  azureSpeechVoice:  process.env.AZURE_SPEECH_VOICE  || "en-US-AriaNeural",
+
+  // Language override — forces Claude to respond only in this language, regardless of businessContext.md
+  languageOverride: process.env.LANGUAGE_OVERRIDE || "",
+
   checkEnvVariables: function () {
     ENV_VARS.forEach(function (key) {
       if (!process.env[key]) {

@@ -10,7 +10,7 @@ const config = require("./config");
 // Map of callId → { dgConnection, sdpAnswer, isProcessing, accepted }
 const activeSessions = new Map();
 
-const ENDPOINTING_MS = 800;
+const ENDPOINTING_MS = 400;
 
 /**
  * Start a live AI call session.
@@ -61,7 +61,7 @@ async function startCallSession(callId, sdpOffer, senderPhoneNumberId, callerNum
       const responseText = await AI.generateTextResponse(transcript);
       console.log(`[call-session] AI response: "${responseText}"`);
       const pcmBuffer = await Voice.synthesizeSpeech(responseText);
-      WebRTC.sendAudioToCall(callId, pcmBuffer, 24000, 1);
+      WebRTC.sendAudioToCall(callId, pcmBuffer, 48000, 1);
     } catch (err) {
       console.error(`[call-session] AI/TTS error:`, err.message);
     } finally {
@@ -133,7 +133,7 @@ async function sendGreeting(callId) {
     const greeting = await AI.generateCallGreeting();
     console.log(`[call-session] Greeting: "${greeting}"`);
     const pcmBuffer = await Voice.synthesizeSpeech(greeting);
-    WebRTC.sendAudioToCall(callId, pcmBuffer, 24000, 1);
+    WebRTC.sendAudioToCall(callId, pcmBuffer, 48000, 1);
   } catch (err) {
     console.error(`[call-session] Greeting error:`, err.message);
   } finally {

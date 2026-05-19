@@ -37,14 +37,17 @@ module.exports = class Voice {
   }
 
   /**
-   * Synthesize speech using Deepgram Aura TTS, returning raw PCM at 24000 Hz, 16-bit.
-   * RTCAudioSource accepts arbitrary sample rates and handles resampling internally.
-   * @param {string} text - Text to speak
-   * @returns {Promise<Buffer>} PCM audio buffer (signed 16-bit, 24000 Hz, mono)
+   * Synthesize speech — uses Azure TTS if AZURE_SPEECH_KEY is set, else Deepgram Aura.
+   * Returns raw PCM at 48000 Hz, 16-bit, mono (matches OPUS native rate — no resampling needed).
+   * @param {string} text
+   * @returns {Promise<Buffer>} PCM audio buffer (signed 16-bit, 48000 Hz, mono)
    */
   static async synthesizeSpeech(text) {
+    if (config.azureSpeechKey) {
+      return Voice.synthesizeSpeechAzure(text);
+    }
     const response = await fetch(
-      "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=linear16&sample_rate=24000",
+      "https://api.deepgram.com/v1/speak?model=aura-2-thalia-en&encoding=linear16&sample_rate=48000",
       {
         method: "POST",
         headers: {
@@ -58,6 +61,37 @@ module.exports = class Voice {
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`Deepgram TTS failed: ${err}`);
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  /**
+   * Synthesize speech using Azure Cognitive Services TTS.
+   * Output format: raw-24khz-16bit-mono-pcm (no header, ready for RTCAudioSource).
+   * @param {string} text
+   * @returns {Promise<Buffer>} PCM audio buffer (signed 16-bit, 24000 Hz, mono)
+   */
+  static async synthesizeSpeechAzure(text) {
+    const { azureSpeechKey: key, azureSpeechRegion: region, azureSpeechVoice: voice } = config;
+    const lang = voice.split('-').slice(0, 2).join('-'); // e.g. "si-LK" from "si-LK-ThiliniNeural"
+    const ssml = `<speak version='1.0' xml:lang='${lang}'><voice name='${voice}'>${text}</voice></speak>`;
+    const response = await fetch(
+      `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+      {
+        method: "POST",
+        headers: {
+          "Ocp-Apim-Subscription-Key": key,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "raw-48khz-16bit-mono-pcm",
+        },
+        body: ssml,
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Azure TTS failed: ${err}`);
     }
 
     return Buffer.from(await response.arrayBuffer());
