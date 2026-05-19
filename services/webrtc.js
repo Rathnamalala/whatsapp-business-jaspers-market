@@ -74,23 +74,32 @@ async function handleIncomingCall(callId, sdpOffer, onAudioChunk) {
  * @param {number} sampleRate - e.g. 44100
  * @param {number} channelCount - e.g. 1
  */
-function sendAudioToCall(callId, pcmBuffer, sampleRate = 44100, channelCount = 1) {
+function sendAudioToCall(callId, pcmBuffer, sampleRate = 24000, channelCount = 1) {
   const session = activeCalls.get(callId);
   if (!session) return;
 
-  const samples = new Int16Array(
+  const FRAME_SAMPLES = Math.floor(sampleRate * 0.01); // 10 ms per frame (WebRTC internal processing unit)
+  const allSamples = new Int16Array(
     pcmBuffer.buffer,
     pcmBuffer.byteOffset,
-    pcmBuffer.length / 2
+    Math.floor(pcmBuffer.length / 2)
   );
 
-  session.audioSource.onData({
-    samples,
-    sampleRate,
-    bitsPerSample: 16,
-    channelCount,
-    numberOfFrames: samples.length / channelCount,
-  });
+  for (let offset = 0; offset < allSamples.length; offset += FRAME_SAMPLES) {
+    let chunk = allSamples.slice(offset, offset + FRAME_SAMPLES);
+    if (chunk.length < FRAME_SAMPLES) {
+      const padded = new Int16Array(FRAME_SAMPLES); // zero-filled (silence)
+      padded.set(chunk);
+      chunk = padded;
+    }
+    session.audioSource.onData({
+      samples: chunk,
+      sampleRate,
+      bitsPerSample: 16,
+      channelCount,
+      numberOfFrames: FRAME_SAMPLES,
+    });
+  }
 }
 
 /**
